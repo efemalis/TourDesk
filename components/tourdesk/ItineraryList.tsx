@@ -25,7 +25,7 @@ function newRow(lastTime: string): ItineraryRow {
   }
 }
 
-const COL_COUNT = 4 
+const COL_COUNT = 3  // ← 4'ten 3'e düşürüldü
 
 function applyBorder(cell: ExcelJS.Cell) {
   const side = { style: "thin" as const, color: { argb: "FFD4D4D4" } }
@@ -34,7 +34,7 @@ function applyBorder(cell: ExcelJS.Cell) {
 
 export function ItineraryList({ rows, notes, tourInfo, onRowsChange, onNotesChange, onExportSuccess }: ItineraryListProps) {
   const notesId = useId()
-  const [fileName, setFileName] = useState("") // Yeni dosya adı state'i
+  const [fileName, setFileName] = useState("")
 
   function updateRow(id: string, field: keyof ItineraryRow, value: string) {
     const updatedRows = rows.map((r) => (r.id === id ? { ...r, [field]: value } : r))
@@ -69,7 +69,8 @@ export function ItineraryList({ rows, notes, tourInfo, onRowsChange, onNotesChan
     titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8F9FA" } }
     titleCell.border = { bottom: { style: 'medium', color: { argb: 'FFBDC3C7' } } }
 
-    const headerRow = ws.addRow(["#", "Saat", "Etkinlik / Durum", "Mekan ve Açıklama"])
+    // ← "Mekan ve Açıklama" kaldırıldı
+    const headerRow = ws.addRow(["#", "Saat", "Etkinlik / Durum"])
     headerRow.height = 25
     headerRow.eachCell((cell) => {
       cell.font = { name: "Segoe UI", bold: true, size: 9, color: { argb: "FFFFFFFF" } }
@@ -79,7 +80,8 @@ export function ItineraryList({ rows, notes, tourInfo, onRowsChange, onNotesChan
     })
 
     rows.forEach((r, i) => {
-      const dr = ws.addRow([i + 1, r.time, r.activity, r.details])
+      // ← details kaldırıldı, sadece activity
+      const dr = ws.addRow([i + 1, r.time, r.activity])
       dr.height = 22
 
       const fillArgb = r.rowColor ? hexToArgb(r.rowColor) : null
@@ -99,26 +101,35 @@ export function ItineraryList({ rows, notes, tourInfo, onRowsChange, onNotesChan
             if (!fillArgb) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF4F6F7" } }
           }
         } else {
-          cell.alignment = { horizontal: "left", vertical: "middle", indent: 1 }
+          // ← Etkinlik sütunu: wrapText açık, sola yasla
+          cell.alignment = { horizontal: "left", vertical: "middle", indent: 1, wrapText: true }
         }
       })
     })
 
     if (notes) {
       ws.addRow([])
+      const noteLines = notes.split("\n")
+      // ← Satır sayısına göre dinamik yükseklik
+      const notesRowHeight = Math.max(30, noteLines.length * 16 + 10)
+
       const notesRow = ws.addRow([`Önemli Notlar: ${notes}`])
-      notesRow.height = 30
+      notesRow.height = notesRowHeight
       ws.mergeCells(notesRow.number, 1, notesRow.number, COL_COUNT)
       const nc = ws.getCell(notesRow.number, 1)
       nc.font = { name: "Segoe UI", size: 9.5, color: { argb: "FFC0392B" }, italic: true }
-      nc.alignment = { horizontal: "left", vertical: "middle", indent: 1 }
+      // ← wrapText: true eklendi — satır sonları Excel'de görünür
+      nc.alignment = { horizontal: "left", vertical: "top", indent: 1, wrapText: true }
       nc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFDF2F0" } }
       const noteBorder = { style: 'thin' as const, color: { argb: 'FFFADBD8' } }
       nc.border = { top: noteBorder, bottom: noteBorder, left: noteBorder, right: noteBorder }
     }
 
+    // ← Sütun genişlikleri: #=5, Saat=10, Etkinlik=65 (geniş)
     ws.columns = [
-      { width: 5 }, { width: 10 }, { width: 25 }, { width: 45 },
+      { width: 5 },
+      { width: 10 },
+      { width: 65 },
     ]
 
     const buffer = await wb.xlsx.writeBuffer()
@@ -126,12 +137,11 @@ export function ItineraryList({ rows, notes, tourInfo, onRowsChange, onNotesChan
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    
-    // Özel Dosya Adı Mantığı
+
     const date = new Date().toISOString().slice(0, 10)
     const defaultName = `GunlukAkis_${(tourInfo.tourName || "Tur").replace(/\s+/g, "_")}_${date}`
     a.download = fileName.trim() ? `${fileName.trim()}.xlsx` : `${defaultName}.xlsx`
-    
+
     a.click()
     URL.revokeObjectURL(url)
     onExportSuccess()
@@ -144,8 +154,7 @@ export function ItineraryList({ rows, notes, tourInfo, onRowsChange, onNotesChan
     <div className="flex flex-col gap-4">
       <div className="flex justify-between items-center">
         <p className="text-xs text-muted-foreground">{rows.length} akış maddesi</p>
-        
-        {/* Dosya Adı ve İndirme Butonu */}
+
         <div className="flex items-center gap-2">
           <input
             type="text"
@@ -165,7 +174,8 @@ export function ItineraryList({ rows, notes, tourInfo, onRowsChange, onNotesChan
           <thead>
             <tr className="border-b border-border">
               <th className="w-6 px-2 py-2.5" />
-              {["#", "Saat", "Etkinlik / Durum", "Mekan ve Açıklama", ""].map((h, i) => (
+              {/* ← "Mekan ve Açıklama" başlığı kaldırıldı */}
+              {["#", "Saat", "Etkinlik / Durum", ""].map((h, i) => (
                 <th key={i} className="px-3 py-2.5 text-left text-[10px] font-medium uppercase tracking-widest text-muted-foreground whitespace-nowrap">
                   {h}
                 </th>
@@ -182,11 +192,9 @@ export function ItineraryList({ rows, notes, tourInfo, onRowsChange, onNotesChan
                 <td className="px-2 py-1.5 w-24">
                   <input type="time" className={TIME_CLS} value={row.time} onChange={(e) => updateRow(row.id, "time", e.target.value)} style={{ color: row.rowColor ? "#111" : undefined }} />
                 </td>
-                <td className="px-2 py-1.5 min-w-[200px]">
-                  <input className={CELL_CLS} value={row.activity} onChange={(e) => updateRow(row.id, "activity", e.target.value)} placeholder="Örn: Lobi Buluşma, Soundcheck, Sahne" style={{ color: row.rowColor ? "#111" : undefined }} />
-                </td>
-                <td className="px-2 py-1.5 min-w-[350px] w-full">
-                  <input className={CELL_CLS} value={row.details} onChange={(e) => updateRow(row.id, "details", e.target.value)} placeholder="Mekan, konum veya ekstra detayları buraya yazın..." style={{ color: row.rowColor ? "#111" : undefined }} />
+                {/* ← Tek geniş etkinlik sütunu, details input'u kaldırıldı */}
+                <td className="px-2 py-1.5 w-full">
+                  <input className={CELL_CLS} value={row.activity} onChange={(e) => updateRow(row.id, "activity", e.target.value)} placeholder="Örn: Lobi Buluşma, Soundcheck, Sahne — mekan ve detay buraya" style={{ color: row.rowColor ? "#111" : undefined }} />
                 </td>
                 <td className="px-2 py-1.5 w-8">
                   <button onClick={() => deleteRow(row.id)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all">
