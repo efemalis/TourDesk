@@ -51,7 +51,7 @@ export function CrewList({ rows, notes, tourInfo, onRowsChange, onNotesChange, o
     const wb = new ExcelJS.Workbook()
     const ws = wb.addWorksheet("Ekip Listesi")
 
-    const titleText = `${tourInfo.tourName || "Tur"} — ${tourInfo.artist || "Sanatçı"}  |  Ekip Kadrosu ve Bütçe Raporu`
+    const titleText = `${tourInfo.tourName || "Tur"} — ${tourInfo.artist || "Sanatçı"}  |  Ekip Listesi`
 
     // Ana Başlık Tasarımı
     const titleRow = ws.addRow([titleText])
